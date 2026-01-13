@@ -355,14 +355,24 @@ class UnifiedFrontDoorService:
             return {"status": "unknown", "timestamp": datetime.utcnow().isoformat()}
     
     def get_project_metrics(self, project_id: str) -> Tuple[bytes, str]:
-        """Get Prometheus metrics for a specific project"""
+    """Get Prometheus metrics for a specific project"""
+
+        #Project-specific metrics ONLY
         if project_id in self.metrics_services:
             svc = self.metrics_services[project_id]
             return svc.get_metrics_output(), svc.get_content_type()
-        elif self.global_metrics_service:
-            return self.global_metrics_service.get_metrics_output(), self.global_metrics_service.get_content_type()
-        else:
-            return b"# No metrics service configured\n", "text/plain"
+        
+        #Global metrics ONLY for /metrics
+        if project_id == "_global" and self.global_metrics_service:
+            return (
+                self.global_metrics_service.get_metrics_output(),
+                self.global_metrics_service.get_content_type(),
+            )
+        
+        #No fallback
+        return b"# No metrics configured for this project\n", "text/plain"
+
+
     
     async def sync_manifests(self):
         """Synchronize manifests and determine routing modes"""
