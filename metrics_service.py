@@ -109,11 +109,11 @@ class MetricsService:
         self._initialized = False
         self._push_task: Optional[asyncio.Task] = None
         
-        if not PROMETHEUS_AVAILABLE:
-            logger.warning("prometheus_client not installed. Metrics will be disabled.")
+        if PROMETHEUS_AVAILABLE:
+            #per-instance registry
+            self._registry = CollectorRegistry(auto_describe=True)
         else:
-            # Create a separate registry for each instance
-            self._registry = CollectorRegistry()
+            self._registry = None
     
     async def initialize(self):
         """Initialize metrics registry and default metrics"""
@@ -126,7 +126,9 @@ class MetricsService:
         
         # Use default registry or create new one
         #self._registry = REGISTRY
-        
+        if not self._registry:
+            raise RuntimeError("Metrics registry not initialized")
+			
         # Initialize default metrics
         if self.config.enable_default_metrics:
             self._init_default_metrics()
@@ -282,14 +284,14 @@ class MetricsService:
         
         try:
             if metric_type == MetricType.COUNTER:
-                self._metrics[key] = Counter(name, description, labels)
+                self._metrics[key] = Counter(name, description, labels, registry=self._registry)
             elif metric_type == MetricType.GAUGE:
-                self._metrics[key] = Gauge(name, description, labels)
+                self._metrics[key] = Gauge(name, description, labels, registry=self._registry)
             elif metric_type == MetricType.HISTOGRAM:
                 if buckets:
-                    self._metrics[key] = Histogram(name, description, labels, buckets=buckets)
+                    self._metrics[key] = Histogram(name, description, labels, buckets=buckets, registry=self._registry)
                 else:
-                    self._metrics[key] = Histogram(name, description, labels)
+                    self._metrics[key] = Histogram(name, description, labels, registry=self._registry)
             elif metric_type == MetricType.SUMMARY:
                 self._metrics[key] = Summary(name, description, labels)
             
@@ -308,14 +310,14 @@ class MetricsService:
         
         try:
             if metric_def.type == MetricType.COUNTER:
-                self._metrics[metric_def.name] = Counter(name, metric_def.description, labels)
+                self._metrics[metric_def.name] = Counter(name, metric_def.description, labels, registry=self._registry)
             elif metric_def.type == MetricType.GAUGE:
-                self._metrics[metric_def.name] = Gauge(name, metric_def.description, labels)
+                self._metrics[metric_def.name] = Gauge(name, metric_def.description, labels, registry=self._registry)
             elif metric_def.type == MetricType.HISTOGRAM:
                 buckets = metric_def.buckets or self.config.latency_buckets
-                self._metrics[metric_def.name] = Histogram(name, metric_def.description, labels, buckets=buckets)
+                self._metrics[metric_def.name] = Histogram(name, metric_def.description, labels, buckets=buckets, registry=self._registry)
             elif metric_def.type == MetricType.SUMMARY:
-                self._metrics[metric_def.name] = Summary(name, metric_def.description, labels)
+                self._metrics[metric_def.name] = Summary(name, metric_def.description, labels, registry=self._registry)
             
             logger.debug(f"Created custom metric: {name} ({metric_def.type.value})")
         except Exception as e:
