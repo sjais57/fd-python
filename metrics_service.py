@@ -116,7 +116,7 @@ class MetricsService:
             self._registry = CollectorRegistry()
     
     async def initialize(self):
-    """Initialize metrics registry and default metrics"""
+        """Initialize metrics registry and default metrics"""
         if not PROMETHEUS_AVAILABLE:
             logger.warning("Skipping metrics initialization - prometheus_client not available")
             return
@@ -124,7 +124,10 @@ class MetricsService:
         if self._initialized:
             return
         
-        # Initialize default metrics using our own registry
+        # Use default registry or create new one
+        #self._registry = REGISTRY
+        
+        # Initialize default metrics
         if self.config.enable_default_metrics:
             self._init_default_metrics()
         
@@ -279,14 +282,14 @@ class MetricsService:
         
         try:
             if metric_type == MetricType.COUNTER:
-                self._metrics[key] = Counter(name, desc, labels, registry=self._registry)
+                self._metrics[key] = Counter(name, description, labels)
             elif metric_type == MetricType.GAUGE:
-                self._metrics[key] = Gauge(name, desc, labels, registry=self._registry)
+                self._metrics[key] = Gauge(name, description, labels)
             elif metric_type == MetricType.HISTOGRAM:
                 if buckets:
-                    self._metrics[key] = Histogram(name, desc, labels, buckets=buckets, registry=self._registry)
+                    self._metrics[key] = Histogram(name, description, labels, buckets=buckets)
                 else:
-                    self._metrics[key] = Histogram(name, desc, labels, registry=self._registry)
+                    self._metrics[key] = Histogram(name, description, labels)
             elif metric_type == MetricType.SUMMARY:
                 self._metrics[key] = Summary(name, description, labels)
             
