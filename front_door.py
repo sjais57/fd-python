@@ -260,7 +260,15 @@ class UnifiedFrontDoorService:
         if OBSERVABILITY_AVAILABLE:
             self.global_health_service = HealthCheckService()
             await self.global_health_service.initialize()
-            self.global_metrics_service = MetricsService()
+            from observability.metrics_service import MetricsConfig
+            
+            global_metrics_config = MetricsConfig(
+                enabled=True,
+                enable_default_metrics=True,
+                namespace="dsp_fd2_global",
+            )
+            
+            self.global_metrics_service = MetricsService(global_metrics_config)
             await self.global_metrics_service.initialize()
             logger.info("Global observability services initialized")
         
@@ -351,10 +359,10 @@ class UnifiedFrontDoorService:
         if project_id in self.metrics_services:
             svc = self.metrics_services[project_id]
             return svc.get_metrics_output(), svc.get_content_type()
-        elif project_id == "_global" and self.global_metrics_service:
+        elif self.global_metrics_service:
             return self.global_metrics_service.get_metrics_output(), self.global_metrics_service.get_content_type()
         else:
-            return b"# No metrics configured for this project\n", "text/plain"
+            return b"# No metrics service configured\n", "text/plain"
     
     async def sync_manifests(self):
         """Synchronize manifests and determine routing modes"""
