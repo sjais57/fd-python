@@ -38,16 +38,21 @@ async def _resolve_headers(
 
     return resolved
 
-_perform_check()
-headers = await self._resolve_headers(
-    target.headers,
-    request_id=f"health-{target.name}"
-)
+    def _resolve_manifest_value(self, value: Any, context: Dict[str, Any]) -> Any:
+        """
+        Resolve ${...} variables inside manifest-derived values.
+        Used for dynamic headers (e.g. Authorization tokens).
+        """
+        if isinstance(value, str):
+            for k, v in context.items():
+                value = value.replace(f"${{{k}}}", str(v))
+            return value
 
-request_kwargs = {
-    "method": target.method,
-    "url": target.url,
-    "headers": headers,
-    "timeout": target.timeout_seconds,
-}
+        if isinstance(value, dict):
+            return {
+                k: self._resolve_manifest_value(v, context)
+                for k, v in value.items()
+            }
+
+        return value
 
